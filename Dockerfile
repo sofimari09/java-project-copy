@@ -1,28 +1,27 @@
 FROM eclipse-temurin:21-jre-jammy
 
+ARG KESTRA_PLUGINS=""
+ARG APT_PACKAGES=""
+ARG PYTHON_LIBRARIES=""
+
 WORKDIR /app
 
-# Створення користувача (опціонально)
 RUN groupadd kestra && \
     useradd -m -g kestra kestra
 
-# Копіюємо код програми
 COPY --chown=kestra:kestra docker /
 
-# Оновлення пакетів і установка необхідних залежностей (за потреби)
 RUN apt-get update -y && \
     apt-get upgrade -y && \
+    if [ -n "${APT_PACKAGES}" ]; then apt-get install -y --no-install-recommends ${APT_PACKAGES}; fi && \
     apt-get clean && \
-    rm -rf /var/lib/apt/lists/* /var/tmp/* /tmp/*
+    rm -rf /var/lib/apt/lists/* /var/tmp/* /tmp/* && \
+    if [ -n "${KESTRA_PLUGINS}" ]; then /app/kestra plugins install ${KESTRA_PLUGINS} && rm -rf /tmp/*; fi && \
+    if [ -n "${PYTHON_LIBRARIES}" ]; then pip install ${PYTHON_LIBRARIES}; fi && \
+    chown -R kestra:kestra /app
 
-# Встановлення власника робочого каталогу
-RUN chown -R kestra:kestra /app
-
-# Використовуємо користувача `kestra`
 USER kestra
 
-# Вхідна точка
 ENTRYPOINT ["docker-entrypoint.sh"]
 
-# Команда за замовчуванням
 CMD ["--help"]
